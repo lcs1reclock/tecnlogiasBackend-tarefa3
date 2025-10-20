@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// comfiguração da fonte de dados - de onde vem os dados
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo de dados - tabela produtos
+model Product {
+  id           Int      @id @default(autoincrement())
+  title        String   @db.VarChar(255)
+  description  String   @db.Text
+  price        Decimal  @db.Decimal(10, 2)
+  imageUrl     String   @map("image_url") 
+  isFeatured   Boolean  @default(false) @map("is_featured") 
+  createdAt    DateTime @default(now()) @map("created_at") 
+  updatedAt    DateTime @updatedAt @map("updated_at") 
+
+  @@map("products") 
+}
+
+
+model User {
+  id          Int         @id @default(autoincrement())
+  email       String      @unique
+  password    String      // sempre será armazenado como hash, nunca como texto produtos
+  name        String?     // campo opcional para nome do usuário
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt  
+
+  @@map("users")          // nome da tabela no banco
+}

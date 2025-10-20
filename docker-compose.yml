@@ -1,0 +1,18 @@
+# docker-coompose.yml
+services:
+  #Nosso serviço de banco de dados
+  postgres:
+    image: postgres:15-alpine # versão leve e estável do PostgreSQL
+    container_name: catalogo_db
+    environment:
+      POSTGRES_USER: admin            # Usuário do banco
+      POSTGRES_PASSWORD: senha123     # Senha
+      POSTGRES_DB: catalogo_produtos  # Nome do banco
+    ports:
+     - "5433:5432"                 # Porta padrão do PostgreSQL
+    volumes:
+      # isso garante que os dados persistam mesmo se o container parar
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
