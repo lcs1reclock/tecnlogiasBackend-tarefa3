@@ -7,6 +7,8 @@ import { email, json, z, ZodError } from 'zod';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
+import * as dotenv from 'dotenv';
+dotenv.config();
 
 // cria uma instancia da aplicação Express
 const app = express();
@@ -27,8 +29,8 @@ const loginSchema = z.object({
     password: z.string().min(1, 'Senha é obrigatória')
 });
 
-// chave secreta para JWT (em produção, isso vai para variável de ambiente)
-const JWT_SECRET = 'seu_jwt_secret_seguro_aqui';
+// chave secreta para JWT 
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Interface para estender o Request do Express
 interface AuthRequest extends Request {
@@ -77,7 +79,6 @@ const authMiddleware = async (req: AuthRequest, res: Response, next: any) => {
 
         // 5. Continuar para a próxima função (rota final)
         next();
-
     } catch (error) {
         if (error instanceof jwt.JsonWebTokenError) {
             return res.status(401).json({ error: 'Token inválido' });
@@ -102,18 +103,61 @@ app.get('/', (req: Request, res: Response) => {
     res.json({ status: "OK" });
 });
 
+app.get('/api/products', async (req: Request, res: Response) => {
+    // buscar todos os produtos
+    try {
+        const products = await prisma.product.findMany();
+        return res.status(200).json(products);
+    } catch (error) {
+        return res.status(500).json({ error: 'Erro ao listar produtos' });
+    }
+});
+
+app.get('/api/products/:id', async (req: Request, res: Response) => {
+    //const { id } = req.params;
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ error: "ID do produto inválido" });
+    }
+
+    try {
+        const produtos = await prisma.product.findUnique({
+            where: {
+                id: id
+            }
+        });
+
+        if (!produtos) {
+            res.status(404).json({ error: "Produto não encontrado" });
+        } else {
+            return res.status(200).json(produtos);
+        }
+    } catch (erro) {
+        return res.status(500).json({ error: "Erro ao consultar produto!" });
+    }
+
+});
+
+
+
+/* 
+    Schema Zod
+*/
+export const createProductSchema = z.object({
+    title: z.string().min(3, "Titulo deve ter pelo menos 3 caracteres"),
+    description: z.string().min(10, "Descrição deve ter pelo menos 3 caracteres"),
+    price: z.coerce.number().positive("Preço deve ser maior que zero"),
+    imageUrl: z.string().min(1, "ImageUrl não pode ser vazio"),
+    isFeatured: z.coerce.boolean().optional().default(false)
+});
+
+
 /*
     Get /api/auth/me
     - Rota protegida para verificar se token está funcionando
     - Retorna informações do usuário logado
 */
-app.get('/api/auth/me', authMiddleware, (req: AuthRequest, res: Response) => {
-    // se chegou até aqui, o middleware já validou o token
-    return res.status(200).json({
-        message: 'Usuário autenticado',
-        user: req.user
-    })
-});
 
 // criar usuário
 app.post('/api/auth/register', async (req: Request, res: Response) => {
@@ -162,7 +206,7 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
 
     } catch (error) {
         if (error instanceof z.ZodRealError) {
-            return res.status(400).json({ error: error[0].message })
+            return res.status(400).json({ error: JSON.parse(error.message) })
         }
         return res.status(500).json({ error: 'Erro interno do servidor' });
     }
@@ -217,55 +261,12 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
 });
 
 
-
-
-app.get('/api/products', async (req: Request, res: Response) => {
-    // buscar todos os produtos
-    try {
-        const products = await prisma.product.findMany();
-        return res.status(200).json(products);
-    } catch (error) {
-        return res.status(500).json({ error: 'Erro ao listar produtos' });
-    }
-});
-
-app.get('/api/products/:id', async (req: Request, res: Response) => {
-    //const { id } = req.params;
-    const id = Number(req.params.id);
-
-    if (!Number.isInteger(id) || id <= 0) {
-        return res.status(400).json({ error: "ID do produto inválido" });
-    }
-
-    try {
-        const produtos = await prisma.product.findUnique({
-            where: {
-                id: id
-            }
-        });
-
-        if (!produtos) {
-            res.status(404).json({ error: "Produto não encontrado" });
-        } else {
-            return res.status(200).json(produtos);
-        }
-    } catch (erro) {
-        return res.status(500).json({ error: "Erro ao consultar produto!" });
-    }
-
-});
-
-
-
-/* 
-    Schema Zod
-*/
-export const createProductSchema = z.object({
-    title: z.string().min(3, "Titulo deve ter pelo menos 3 caracteres"),
-    description: z.string().min(10, "Descrição deve ter pelo menos 3 caracteres"),
-    price: z.coerce.number().positive("Preço deve ser maior que zero"),
-    imageUrl: z.string().min(1, "ImageUrl não pode ser vazio"),
-    isFeatured: z.coerce.boolean().optional().default(false)
+app.get('/api/auth/me', authMiddleware, (req: AuthRequest, res: Response) => {
+    // se chegou até aqui, o middleware já validou o token
+    return res.status(200).json({
+        message: 'Usuário autenticado',
+        user: req.user
+    });
 });
 
 // inserir produtos
